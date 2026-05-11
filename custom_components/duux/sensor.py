@@ -40,10 +40,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     
     entities = []
     for device in devices:
+        device_type_id = device.get("sensorType", {}).get("type")
         sensor_type_id = device.get("sensorTypeId")
         device_id = device["deviceId"]
         coordinator = coordinators[device_id]
-        
+
+        if device_type_id in DUUX_DTID_FAN:
+            continue
         if sensor_type_id == DUUX_STID_BORA_2024:
             entities.append(DuuxHumiditySensor(coordinator, api, device))
             entities.append(DuuxTimeRemainingSensor(coordinator, api, device))

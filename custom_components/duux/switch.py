@@ -1,17 +1,12 @@
 """Support for Duux switches."""
 
+import asyncio
 import logging
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.duux.const import (
-    DOMAIN,
-    DUUX_STID_BORA_2024,
-    DUUX_STID_EDGEHEATER_2000,
-    DUUX_STID_EDGEHEATER_2023_V1,
-    DUUX_STID_EDGEHEATER_V2,
-)
+from .const import *
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +40,12 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             entities.append(DuuxCleaningModeSwitch(coordinator, api, device))
             entities.append(DuuxLaundryModeSwitch(coordinator, api, device))
 
+        # Whisper Flex 2 offers on/off, night mode and child lock.
+        elif sensor_type_id == DUUX_STID_WHISPER_FLEX_2:
+            entities.append(DuuxPowerSwitch(coordinator, api, device))
+            entities.append(DuuxNightModeSwitch(coordinator, api, device))
+            entities.append(DuuxChildLockSwitch(coordinator, api, device))
+
     async_add_entities(entities)
 
 
@@ -71,6 +72,38 @@ class DuuxSwitch(CoordinatorEntity, SwitchEntity):
             "manufacturer": self._device.get("manufacturer", "Duux"),
             "model": self._device.get("sensorType", {}).get("name", "Unknown"),
         }
+
+
+class DuuxPowerSwitch(DuuxSwitch):
+    """Representation of a Duux power switch."""
+
+    def __init__(self, coordinator, api, device):
+        """Initialize the power switch."""
+        super().__init__(coordinator, api, device)
+        self._attr_unique_id = f"duux_{self._device_id}_power"
+        self._attr_name = "Power"
+        self._attr_icon = "mdi:power"
+
+    @property
+    def is_on(self):
+        """Return true if device power is on."""
+        return self.coordinator.data.get("power") == 1
+
+    async def async_turn_on(self, **kwargs):
+        """Turn device on."""
+        await self.hass.async_add_executor_job(
+            self._api.set_power, self._device_mac, True
+        )
+        await asyncio.sleep(2)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs):
+        """Turn device off."""
+        await self.hass.async_add_executor_job(
+            self._api.set_power, self._device_mac, False
+        )
+        await asyncio.sleep(2)
+        await self.coordinator.async_request_refresh()
 
 
 class DuuxChildLockSwitch(DuuxSwitch):

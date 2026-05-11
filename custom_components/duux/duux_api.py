@@ -24,6 +24,7 @@ class DuuxAPI:
             response = self.session.post(
                 f"{API_BASE_URL}{API_LOGIN}",
                 json={"username": self.email, "password": self.password},
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()
@@ -43,7 +44,7 @@ class DuuxAPI:
     def get_devices(self):
         """Get all Duux devices."""
         try:
-            response = self.session.get(f"{API_BASE_URL}{API_SENSORS}")
+            response = self.session.get(f"{API_BASE_URL}{API_SENSORS}", timeout=30)
             response.raise_for_status()
             devices = response.json().get("data")
             _LOGGER.debug(f"Found {len(devices)} Duux device(s)")
@@ -65,7 +66,7 @@ class DuuxAPI:
         """Send command to device."""
         try:
             url = f"{API_BASE_URL}{API_COMMANDS}".replace("{deviceMac}", device_mac)
-            response = self.session.post(url, json={"command": command})
+            response = self.session.post(url, json={"command": command}, timeout=30)
             response.raise_for_status()
             _LOGGER.info(f"Command sent: {command}")
             return True
@@ -106,6 +107,11 @@ class DuuxAPI:
         """Set fan mode (1=Low, 0=High)."""
         mode_val = max(0, min(1, int(mode)))
         return self.send_command(device_mac, f"tune set fan {mode_val}")
+
+    def set_speed(self, device_mac, speed):
+        """Set fan speed for Whisper Flex 2 (1-30)."""
+        speed_val = max(1, min(30, int(speed)))
+        return self.send_command(device_mac, f"tune set speed {speed_val}")
 
     def set_night_mode(self, device_mac, night_on):
         """Set night mode."""

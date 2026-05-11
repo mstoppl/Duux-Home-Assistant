@@ -1,5 +1,6 @@
 # custom_components/duux/__init__.py
 
+import importlib
 import logging
 from datetime import timedelta
 
@@ -12,6 +13,7 @@ from homeassistant.helpers import issue_registry as ir
 
 from .const import (
     DOMAIN,
+    DUUX_DTID_FAN,
     DUUX_DTID_HEATER,
     DUUX_DTID_THERMOSTAT,
     DUUX_DTID_HUMIDIFIER,
@@ -60,6 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             *DUUX_DTID_HEATER,
             *DUUX_DTID_THERMOSTAT,
             *DUUX_DTID_HUMIDIFIER,
+            *DUUX_DTID_FAN,
             *DUUX_DTID_OTHER_HEATER,
         ]:
             ir.async_create_issue(
@@ -111,6 +114,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinators": coordinators,
         "devices": devices,
     }
+
+    # Preload platform modules in a thread to avoid blocking import_module in the event loop.
+    for platform in PLATFORMS:
+        await hass.async_add_executor_job(
+            importlib.import_module, f"{__name__}.{platform.value}"
+        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

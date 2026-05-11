@@ -26,9 +26,12 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         device_id = device["deviceId"]
         coordinator = coordinators[device_id]
         
-        # Bora has two fan speeds..
+        # Bora has two fan speeds; Whisper Flex 2 supports 1-30.
         if sensor_type_id == DUUX_STID_BORA_2024:
             entities.append(DuuxFanSpeedSelector(coordinator, api, device))
+            entities.append(DuuxTimerSelector(coordinator, api, device))
+        elif sensor_type_id == DUUX_STID_WHISPER_FLEX_2:
+            entities.append(DuuxWhisperFlex2SpeedSelector(coordinator, api, device))
             entities.append(DuuxTimerSelector(coordinator, api, device))
     
     async_add_entities(entities)
@@ -98,6 +101,38 @@ class DuuxFanSpeedSelector(DuuxSelector):
 
         await self.hass.async_add_executor_job(
             self._api.set_fan, self._device_mac, mode
+        )
+        await self.coordinator.async_request_refresh()
+
+class DuuxWhisperFlex2SpeedSelector(DuuxSelector):
+    """Representation of a Duux Whisper Flex 2 multi-speed selector."""
+
+    def __init__(self, coordinator, api, device):
+        """Initialize the Whisper Flex 2 speed selector."""
+        super().__init__(coordinator, api, device)
+        self._attr_unique_id = f"duux_{self._device_id}_fan_speed"
+        self._attr_name = "Fan Speed"
+        self._attr_icon = "mdi:fan"
+
+    @property
+    def options(self):
+        """Return available fan speeds for Whisper Flex 2."""
+        return [str(speed) for speed in range(1, 31)]
+
+    @property
+    def current_option(self):
+        """Return current Whisper Flex 2 fan speed."""
+        return str(self.coordinator.data.get("speed", 1) or 1)
+
+    async def async_select_option(self, option):
+        """Set Whisper Flex 2 fan speed."""
+        try:
+            speed = max(1, min(30, int(option)))
+        except (TypeError, ValueError):
+            speed = 1
+
+        await self.hass.async_add_executor_job(
+            self._api.set_speed, self._device_mac, speed
         )
         await self.coordinator.async_request_refresh()
 
